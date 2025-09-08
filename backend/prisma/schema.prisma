@@ -8,13 +8,14 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  password  String
-  name      String?
-  surveys   Survey[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id             String         @id @default(cuid())
+  email          String         @unique
+  password       String
+  name           String?
+  surveys        Survey[]
+  refreshTokens  RefreshToken[]   // ⬅️ اضافه شد
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
 }
 
 model Survey {
@@ -24,4 +25,20 @@ model Survey {
   owner     User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model RefreshToken {
+  id         String    @id @default(cuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  tokenHash  String    @unique        // هش توکن (نه خود توکن)
+  userAgent  String?                    // برای ردیابی دستگاه (اختیاری)
+  ip         String?                   // IP اختیاری
+  createdAt  DateTime  @default(now())
+  expiresAt  DateTime
+  revokedAt  DateTime?                 // اگر باطل شد، این پر می‌شود
+
+  @@index([userId])
+  @@index([userId, revokedAt])
 }
