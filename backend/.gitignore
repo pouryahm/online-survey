@@ -1,5 +1,14 @@
-node_modules
-# Keep environment variables out of version control
+﻿# Build & Env
+dist/
 .env
+.env.*
 
-/src/generated/prisma
+# App data (keep .gitkeep)
+uploads/*
+!uploads/.gitkeep
+tmp/*
+!tmp/.gitkeep
+logs/*
+!logs/.gitkeep
+public/*
+!public/.gitkeep
