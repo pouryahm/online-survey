@@ -1,0 +1,11 @@
+@"
+# Online Survey – Monorepo
+
+این ریپو شامل دو پوشه است:
+- \`backend/\` — سرویس Node.js (Express + TypeScript)
+- \`frontend/\` — برنامهٔ فرانت‌اند (React + Vite)
+
+## اجرای سریع محلی (به‌روزرسانی در فاز 0.3 به بعد)
+- بک‌اند: بعداً اضافه می‌شود (ts-node-dev).
+- دیتابیس: Docker Compose (Phase 0.5).
+"@ | Out-File -FilePath README.md -Encoding utf8 -Force
