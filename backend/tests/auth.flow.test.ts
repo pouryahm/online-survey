@@ -1,3 +1,7 @@
+/// <reference types="jest" />
+/* eslint-env jest */
+
+import { describe, it, expect } from '@jest/globals';
 import request from 'supertest';
 
 // می‌تونی BASE URL را از env هم بگیری
@@ -9,7 +13,7 @@ describe('Auth flow: register/login/refresh/logout', () => {
   let accessToken = '';
   let refreshToken = '';
 
-  it('registers a new user', async () => {
+  it('registers a new user', async () => {  
     const res = await request(base)
       .post('/auth/register')
       .send({ email, password, name: 'Flow User' })
