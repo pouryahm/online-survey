@@ -4,6 +4,7 @@ import { z, ZodError } from 'zod';
 import bcrypt from 'bcryptjs';
 import { prisma } from '../lib/prisma';
 import { issueTokensForUser } from '../services/auth';
+import { requireAuth } from '../middleware/auth'; 
 
 export const authRouter = Router();
 
@@ -66,6 +67,21 @@ authRouter.post('/login', async (req, res) => {
     if (err instanceof ZodError) {
       return res.status(400).json({ error: 'Invalid input', details: err.issues });
     }
+    return res.status(500).json({ error: 'Internal error' });
+  }
+});
+
+// GET /auth/me  (Protected)
+authRouter.get('/me', requireAuth, async (req, res) => {
+  try {
+    const userId = req.userId as string;
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, email: true, name: true },
+    });
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    return res.json({ user });
+  } catch {
     return res.status(500).json({ error: 'Internal error' });
   }
 });
