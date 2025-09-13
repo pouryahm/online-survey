@@ -5,6 +5,8 @@ import bcrypt from 'bcryptjs';
 import { prisma } from '../lib/prisma';
 import { issueTokensForUser } from '../services/auth';
 import { requireAuth } from '../middleware/auth'; 
+import { sha256 } from '../utils/hash';
+import { verifyRefreshTokenOrThrow, revokeRefreshTokenById } from '../services/token';
 
 export const authRouter = Router();
 
@@ -82,6 +84,74 @@ authRouter.get('/me', requireAuth, async (req, res) => {
     if (!user) return res.status(404).json({ error: 'User not found' });
     return res.json({ user });
   } catch {
+    return res.status(500).json({ error: 'Internal error' });
+  }
+});
+
+
+// ---- POST /auth/refresh ----
+const RefreshSchema = z.object({
+  refreshToken: z.string().min(10),
+});
+
+authRouter.post('/refresh', async (req, res) => {
+  try {
+    const { refreshToken } = RefreshSchema.parse(req.body);
+
+    // 1) تایید امضا + وجود در DB + عدم ابطال/انقضا
+    const { userId, record } = await verifyRefreshTokenOrThrow(refreshToken);
+
+    // 2) ابطال توکن قدیمی (Rotation)
+    await revokeRefreshTokenById(record.id);
+
+    // 3) صدور جفت جدید
+    const { accessToken, refreshToken: newRt } = await issueTokensForUser(userId, {
+      userAgent: req.headers['user-agent'] as string | undefined,
+      ip: req.ip,
+    });
+
+    // (اختیاری) کاربر را هم برگردانیم
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, email: true, name: true },
+    });
+
+    return res.json({ user, accessToken, refreshToken: newRt });
+  } catch (err: unknown) {
+    if (err instanceof ZodError) {
+      return res.status(400).json({ error: 'Invalid input', issues: err.issues });
+    }
+    // نگاشت خطاهای سرویس
+    const msg = (err as Error)?.message;
+    if (msg === 'INVALID_TOKEN' || msg === 'TOKEN_NOT_FOUND' || msg === 'TOKEN_REVOKED' || msg === 'TOKEN_EXPIRED') {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+    return res.status(500).json({ error: 'Internal error' });
+  }
+});
+
+// ---- POST /auth/logout ----
+const LogoutSchema = z.object({
+  refreshToken: z.string().min(10),
+});
+
+authRouter.post('/logout', async (req, res) => {
+  try {
+    const { refreshToken } = LogoutSchema.parse(req.body);
+
+    // پیدا کردن رکورد و ابطال
+    const tokenHash = sha256(refreshToken);
+    const rec = await prisma.refreshToken.findUnique({ where: { tokenHash } });
+    if (!rec) return res.json({ ok: true }); // idempotent
+
+    if (!rec.revokedAt) {
+      await revokeRefreshTokenById(rec.id);
+    }
+    return res.json({ ok: true });
+  } catch (err: unknown) {
+    if (err instanceof ZodError) {
+      return res.status(400).json({ error: 'Invalid input', issues: err.issues });
+    }
     return res.status(500).json({ error: 'Internal error' });
   }
 });
