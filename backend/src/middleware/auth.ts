@@ -2,6 +2,8 @@ import { Request, Response, NextFunction } from 'express';
 import jwt, { JwtPayload } from 'jsonwebtoken';
 import { env } from '../config/env';
 
+
+
 export function requireAuth(req: Request, res: Response, next: NextFunction) {
   const header = req.header('authorization') ?? req.header('Authorization');
   if (!header?.startsWith('Bearer ')) {

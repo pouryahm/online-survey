@@ -1,13 +1,29 @@
-import { z } from 'zod';
+﻿import "dotenv/config";
 
-const schema = z.object({
-  NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
-  PORT: z.coerce.number().default(3000),
-  DATABASE_URL: z.string(),
-  JWT_ACCESS_SECRET: z.string(),
-  JWT_REFRESH_SECRET: z.string(),
-  JWT_ACCESS_EXPIRES: z.string().default('15m'),  // 15m, 1h, ...
-  JWT_REFRESH_EXPIRES: z.string().default('7d'),  // 7d, 30d, ...
-});
+type Env = {
+  PORT: number;
+  DATABASE_URL: string;
+  JWT_ACCESS_SECRET: string;
+  JWT_REFRESH_SECRET: string;
+  JWT_ACCESS_EXPIRES: string;
+  JWT_REFRESH_EXPIRES: string;
+  FRONTEND_ORIGIN?: string;
+  PWD_RESET_EXPIRES_MIN: number;
+};
 
-export const env = schema.parse(process.env);
+function req(name: string): string {
+  const v = process.env[name];
+  if (!v) throw new Error(`Missing ${name} in .env`);
+  return v;
+}
+
+export const env: Env = {
+  PORT: Number(process.env.PORT ?? 3000),
+  DATABASE_URL: req("DATABASE_URL"),
+  JWT_ACCESS_SECRET: req("JWT_ACCESS_SECRET"),
+  JWT_REFRESH_SECRET: req("JWT_REFRESH_SECRET"),
+  JWT_ACCESS_EXPIRES: process.env.JWT_ACCESS_EXPIRES ?? "15m",
+  JWT_REFRESH_EXPIRES: process.env.JWT_REFRESH_EXPIRES ?? "7d",
+  FRONTEND_ORIGIN: process.env.FRONTEND_ORIGIN,
+  PWD_RESET_EXPIRES_MIN: Number(process.env.PWD_RESET_EXPIRES_MIN ?? 15),
+};
