@@ -1,4 +1,4 @@
-// src/routes/auth.ts
+﻿// src/routes/auth.ts
 import { Router } from 'express';
 import { z, ZodError } from 'zod';
 import bcrypt from 'bcryptjs';
@@ -13,12 +13,8 @@ import {
   markPasswordResetUsed,
 } from '../services/password';
 import { hashPassword, verifyPassword } from '../utils/password';
-import { loginLimiter } from '../middleware/rateLimit';
-import { forgotLimiter, resetLimiter, changePwLimiter } from '../middleware/rateLimit';
-
-
-
-// helper: type guard for error.message بدون any
+import { loginLimiter, authSensitiveLimiter } from '../middleware/rateLimit';
+// helper: type guard for error.message Ø¨Ø¯ÙˆÙ† any
 const hasMessage = (e: unknown): e is { message: string } =>
   typeof e === 'object' && e !== null &&
   'message' in e && typeof (e as Record<string, unknown>).message === 'string';
@@ -130,19 +126,19 @@ authRouter.post('/refresh', async (req, res) => {
   try {
     const { refreshToken } = RefreshSchema.parse(req.body);
 
-    // 1) تایید امضا + وجود در DB + عدم ابطال/انقضا
+    // 1) ØªØ§ÛŒÛŒØ¯ Ø§Ù…Ø¶Ø§ + ÙˆØ¬ÙˆØ¯ Ø¯Ø± DB + Ø¹Ø¯Ù… Ø§Ø¨Ø·Ø§Ù„/Ø§Ù†Ù‚Ø¶Ø§
     const { userId, record } = await verifyRefreshTokenOrThrow(refreshToken);
 
-    // 2) ابطال توکن قدیمی (Rotation)
+    // 2) Ø§Ø¨Ø·Ø§Ù„ ØªÙˆÚ©Ù† Ù‚Ø¯ÛŒÙ…ÛŒ (Rotation)
     await revokeRefreshTokenById(record.id);
 
-    // 3) صدور جفت جدید
+    // 3) ØµØ¯ÙˆØ± Ø¬ÙØª Ø¬Ø¯ÛŒØ¯
     const { accessToken, refreshToken: newRt } = await issueTokensForUser(userId, {
       userAgent: req.headers['user-agent'] as string | undefined,
       ip: req.ip,
     });
 
-    // (اختیاری) کاربر را هم برگردانیم
+    // (Ø§Ø®ØªÛŒØ§Ø±ÛŒ) Ú©Ø§Ø±Ø¨Ø± Ø±Ø§ Ù‡Ù… Ø¨Ø±Ú¯Ø±Ø¯Ø§Ù†ÛŒÙ…
     const user = await prisma.user.findUnique({
       where: { id: userId },
       select: { id: true, email: true, name: true },
@@ -153,7 +149,7 @@ authRouter.post('/refresh', async (req, res) => {
     if (err instanceof ZodError) {
       return res.status(400).json({ error: 'Invalid input', issues: err.issues });
     }
-    // نگاشت خطاهای سرویس
+    // Ù†Ú¯Ø§Ø´Øª Ø®Ø·Ø§Ù‡Ø§ÛŒ Ø³Ø±ÙˆÛŒØ³
     const msg = (err as Error)?.message;
     if (msg === 'INVALID_TOKEN' || msg === 'TOKEN_NOT_FOUND' || msg === 'TOKEN_REVOKED' || msg === 'TOKEN_EXPIRED') {
       return res.status(401).json({ error: 'Unauthorized' });
@@ -171,7 +167,7 @@ authRouter.post('/logout', async (req, res) => {
   try {
     const { refreshToken } = LogoutSchema.parse(req.body);
 
-    // پیدا کردن رکورد و ابطال
+    // Ù¾ÛŒØ¯Ø§ Ú©Ø±Ø¯Ù† Ø±Ú©ÙˆØ±Ø¯ Ùˆ Ø§Ø¨Ø·Ø§Ù„
     const tokenHash = sha256(refreshToken);
     const rec = await prisma.refreshToken.findUnique({ where: { tokenHash } });
     if (!rec) return res.json({ ok: true }); // idempotent
@@ -188,8 +184,8 @@ authRouter.post('/logout', async (req, res) => {
   }
 });
 
-// POST /auth/forgot  -> همیشه {ok:true} برمی‌گردانیم تا وجود/عدم وجود ایمیل لو نرود
-authRouter.post('/forgot', forgotLimiter, async (req, res, next) => {
+// POST /auth/forgot  -> Ù‡Ù…ÛŒØ´Ù‡ {ok:true} Ø¨Ø±Ù…ÛŒâ€ŒÚ¯Ø±Ø¯Ø§Ù†ÛŒÙ… ØªØ§ ÙˆØ¬ÙˆØ¯/Ø¹Ø¯Ù… ÙˆØ¬ÙˆØ¯ Ø§ÛŒÙ…ÛŒÙ„ Ù„Ùˆ Ù†Ø±ÙˆØ¯
+authRouter.post('/forgot', authSensitiveLimiter, async (req, res, next) => {
   try {
     const { email } = forgotSchema.parse(req.body);
     await requestPasswordResetByEmail(email, {
@@ -202,8 +198,8 @@ authRouter.post('/forgot', forgotLimiter, async (req, res, next) => {
   }
 });
 
-// POST /auth/reset  -> با token معتبر، پسورد کاربر را عوض می‌کند و همهٔ refresh tokenهای او را باطل می‌کند
-authRouter.post('/reset', resetLimiter, async (req, res, next) => {
+// POST /auth/reset  -> Ø¨Ø§ token Ù…Ø¹ØªØ¨Ø±ØŒ Ù¾Ø³ÙˆØ±Ø¯ Ú©Ø§Ø±Ø¨Ø± Ø±Ø§ Ø¹ÙˆØ¶ Ù…ÛŒâ€ŒÚ©Ù†Ø¯ Ùˆ Ù‡Ù…Ù‡Ù” refresh tokenÙ‡Ø§ÛŒ Ø§Ùˆ Ø±Ø§ Ø¨Ø§Ø·Ù„ Ù…ÛŒâ€ŒÚ©Ù†Ø¯
+authRouter.post('/reset', authSensitiveLimiter, async (req, res, next) => {
   try {
     const { token, password } = resetSchema.parse(req.body);
     const rec = await verifyPasswordResetTokenOrThrow(token);
@@ -214,7 +210,7 @@ authRouter.post('/reset', resetLimiter, async (req, res, next) => {
       data: { password: newHash },
     });
 
-    // ابطال تمام سشن‌ها بعد از ریست (امنیت بالاتر)
+    // Ø§Ø¨Ø·Ø§Ù„ ØªÙ…Ø§Ù… Ø³Ø´Ù†â€ŒÙ‡Ø§ Ø¨Ø¹Ø¯ Ø§Ø² Ø±ÛŒØ³Øª (Ø§Ù…Ù†ÛŒØª Ø¨Ø§Ù„Ø§ØªØ±)
     await prisma.refreshToken.deleteMany({ where: { userId: rec.userId } });
 
     await markPasswordResetUsed(rec.id);
@@ -231,7 +227,7 @@ authRouter.post('/reset', resetLimiter, async (req, res, next) => {
 });
 
 // POST /auth/change-password (Protected)
-authRouter.post('/change-password', requireAuth, changePwLimiter, async (req, res, next) => {
+authRouter.post('/change-password', requireAuth, authSensitiveLimiter, async (req, res, next) => {
   try {
     const { currentPassword, newPassword } = changeSchema.parse(req.body);
 
@@ -244,7 +240,7 @@ authRouter.post('/change-password', requireAuth, changePwLimiter, async (req, re
     const newHash = await hashPassword(newPassword);
     await prisma.user.update({ where: { id: user.id }, data: { password: newHash } });
 
-    // ابطال تمام refresh tokenهای قبلی بعد از تغییر پسورد
+    // Ø§Ø¨Ø·Ø§Ù„ ØªÙ…Ø§Ù… refresh tokenÙ‡Ø§ÛŒ Ù‚Ø¨Ù„ÛŒ Ø¨Ø¹Ø¯ Ø§Ø² ØªØºÛŒÛŒØ± Ù¾Ø³ÙˆØ±Ø¯
     await prisma.refreshToken.deleteMany({ where: { userId: user.id } });
 
     return res.json({ ok: true });
@@ -252,3 +248,10 @@ authRouter.post('/change-password', requireAuth, changePwLimiter, async (req, re
     return next(err);
   }
 });
+
+
+
+
+
+
+
