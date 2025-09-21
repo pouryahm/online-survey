@@ -9,6 +9,8 @@ import { healthRouter } from "./routes/health";
 import { dbRouter } from "./routes/db";
 import { authRouter } from "./routes/auth";
 import sessionsRoutes from "./routes/sessions";   // 👈 انتقال به بالا
+import profileRouter from "./routes/profile";
+
 
 dotenv.config();
 
@@ -42,6 +44,7 @@ app.use("/health", healthRouter);
 app.use("/db", dbRouter);
 app.use("/auth", authRouter);
 app.use(sessionsRoutes);   // 👈 اینجا اضافه شد
+app.use(profileRouter);
 
 // شروع سرور
 const PORT = env.PORT;
@@ -50,3 +53,4 @@ app.listen(PORT, () => {
 });
 
 export default app;
+
