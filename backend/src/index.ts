@@ -8,6 +8,7 @@ import { env } from "./config/env";
 import { healthRouter } from "./routes/health";
 import { dbRouter } from "./routes/db";
 import { authRouter } from "./routes/auth";
+import sessionsRoutes from "./routes/sessions";   // 👈 انتقال به بالا
 
 dotenv.config();
 
@@ -40,9 +41,12 @@ app.use("/public", express.static(PATHS.public()));
 app.use("/health", healthRouter);
 app.use("/db", dbRouter);
 app.use("/auth", authRouter);
+app.use(sessionsRoutes);   // 👈 اینجا اضافه شد
 
 // شروع سرور
 const PORT = env.PORT;
 app.listen(PORT, () => {
   console.log(`[server] listening on http://localhost:${PORT}`);
 });
+
+export default app;

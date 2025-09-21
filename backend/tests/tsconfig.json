@@ -1,11 +1,9 @@
-{
+﻿{
   "extends": "../tsconfig.json",
   "compilerOptions": {
-    "rootDir": ".",              // ⬅️ مهم: ریشهٔ پروژهٔ تست‌ها خودِ پوشهٔ tests باشد
-    "types": ["jest", "node"],   // ⬅️ تایپ‌های Jest در دسترس ادیتور
-    "noEmit": true               // ⬅️ فقط برای ادیتور/چک تایپی؛ خروجی نسازد
+    "rootDir": "..",
+    "outDir": "../dist-tests",
+    "types": ["jest", "node"]
   },
-  "include": ["**/*.ts", "**/*.d.ts"],  // ⬅️ همه فایل‌های تست داخل همین پوشه
-  "exclude": []                         // ⬅️ والد «tests» را exclude کرده بود؛ اینجا خالی‌اش می‌کنیم
+  "include": ["**/*.ts", "../src/**/*.ts"]
 }
-  
