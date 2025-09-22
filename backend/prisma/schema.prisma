@@ -13,19 +13,62 @@ model User {
   password            String
   name                String?
   surveys             Survey[]
-  refreshTokens       RefreshToken[] // ⬅️ اضافه شد
+  refreshTokens       RefreshToken[]
   passwordResetTokens PasswordResetToken[]
   createdAt           DateTime             @default(now())
   updatedAt           DateTime             @updatedAt
 }
 
+/// -------------------- Phase 2: Survey Builder --------------------
+
+enum QuestionType {
+  TEXT
+  SINGLE_CHOICE
+  MULTI_CHOICE
+  NUMBER
+  DATE
+}
+
 model Survey {
-  id        String   @id @default(cuid())
-  ownerId   String
-  title     String
-  owner     User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  id          String     @id @default(cuid())
+  ownerId     String
+  owner       User       @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  title       String
+  description String?
+  isPublished Boolean    @default(false)
+  slug        String?    @unique
+  questions   Question[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([ownerId])
+}
+
+model Question {
+  id       String       @id @default(cuid())
+  surveyId String
+  survey   Survey       @relation(fields: [surveyId], references: [id], onDelete: Cascade)
+  type     QuestionType
+  title    String
+  required Boolean      @default(false)
+  order    Int          @default(0)
+  choices  Choice[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([surveyId])
+  @@index([surveyId, order])
+}
+
+model Choice {
+  id         String   @id @default(cuid())
+  questionId String
+  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  label      String
+  value      String
+  order      Int      @default(0)
 }
 
 model RefreshToken {
@@ -33,21 +76,22 @@ model RefreshToken {
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  tokenHash String    @unique // هش توکن (نه خود توکن)
-  userAgent String? // برای ردیابی دستگاه (اختیاری)
-  ip        String? // IP اختیاری
+  tokenHash String    @unique
+  userAgent String?
+  ip        String?
   createdAt DateTime  @default(now())
   expiresAt DateTime
-  revokedAt DateTime? // اگر باطل شد، این پر می‌شود
+  revokedAt DateTime?
 
   @@index([userId])
   @@index([userId, revokedAt])
 }
 
 model PasswordResetToken {
-  id        String    @id @default(cuid())
-  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userId    String
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   tokenHash String    @unique
   expiresAt DateTime
   usedAt    DateTime?
