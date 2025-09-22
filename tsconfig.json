@@ -1,18 +1,7 @@
-{
-  "compilerOptions": {
-    "module": "ESNext",
-    "moduleResolution": "Bundler",
-    "target": "ES2024",
-    "jsx": "react-jsx",
-    "strictNullChecks": true,
-    "strictFunctionTypes": true,
-    "strict": true,
-    "sourceMap": true,
-    "types": ["node", "jest"]
-  },
-  "exclude": [
-    "node_modules",
-    "**/node_modules/*",
-    "dist"
+﻿{
+  "files": [],
+  "references": [
+    { "path": "./backend" }
+    // اگر بعداً frontend داری اینجا اضافه کن: { "path": "./frontend" }
   ]
 }

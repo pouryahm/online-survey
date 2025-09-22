@@ -10,6 +10,9 @@ import { dbRouter } from "./routes/db";
 import { authRouter } from "./routes/auth";
 import sessionsRoutes from "./routes/sessions";   // 👈 انتقال به بالا
 import profileRouter from "./routes/profile";
+import surveyRouter from "./routes/surveys";
+import questionsRouter from "./routes/questions";
+import choicesRouter from "./routes/choices";
 
 
 dotenv.config();
@@ -45,6 +48,10 @@ app.use("/db", dbRouter);
 app.use("/auth", authRouter);
 app.use(sessionsRoutes);   // 👈 اینجا اضافه شد
 app.use(profileRouter);
+app.use(surveyRouter);
+app.use(questionsRouter);
+app.use(choicesRouter);
+
 
 // شروع سرور
 const PORT = env.PORT;
