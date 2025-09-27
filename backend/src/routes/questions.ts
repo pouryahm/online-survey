@@ -1,114 +1,213 @@
 import { Router, Response } from "express";
 import { prisma } from "../lib/prisma";
 import { requireAuth, AuthRequest } from "../middleware/auth";
+import { QuestionType } from "@prisma/client";
 
 const router = Router();
 
 /**
- * POST /surveys/:surveyId/questions - create a question
+ * POST /surveys/:surveyId/questions
+ * ایجاد یک سؤال جدید برای یک نظرسنجی
  */
 router.post(
   "/surveys/:surveyId/questions",
   requireAuth,
   async (req: AuthRequest, res: Response) => {
-    const { surveyId } = req.params;
-    const ownerId = req.userId!;
-    const { title, type, required, order } = req.body;
+    try {
+      const { surveyId } = req.params;
+      const userId = req.userId!;
+      const { type, title, required, order, choices } = req.body as {
+        type: QuestionType;
+        title: string;
+        required?: boolean;
+        order?: number;
+        choices?: { label: string; value: string; order?: number }[];
+      };
 
-    // بررسی مالکیت
-    const survey = await prisma.survey.findFirst({ where: { id: surveyId, ownerId } });
-    if (!survey) return res.status(404).json({ message: "Survey not found" });
-
-    const question = await prisma.question.create({
-      data: {
+      console.log("[questions:POST] input", {
         surveyId,
-        title,
+        userId,
         type,
-        required: !!required,
-        order: order ?? 0,
-      },
-    });
+        title,
+        required,
+        order,
+        choicesLen: choices?.length,
+      });
 
-    res.status(201).json({ question });
+      // چک مالکیت نظرسنجی
+      const survey = await prisma.survey.findFirst({
+        where: { id: surveyId, ownerId: userId },
+        select: { id: true },
+      });
+
+      console.log("[questions:POST] survey lookup", {
+        surveyId,
+        userId,
+        found: !!survey,
+      });
+
+      if (!survey) {
+        return res.status(404).json({ message: "Survey not found" });
+      }
+
+      // ایجاد سؤال و گزینه‌ها (اگر وجود داشتند)
+      const question = await prisma.question.create({
+        data: {
+          surveyId: survey.id,
+          type,
+          title,
+          required: required ?? false,
+          order: order ?? 0,
+          choices:
+            choices && choices.length > 0
+              ? {
+                  create: choices.map((c, idx) => ({
+                    label: c.label,
+                    value: c.value,
+                    order: c.order ?? idx,
+                  })),
+                }
+              : undefined,
+        },
+        include: { choices: true },
+      });
+
+      console.log("[questions:POST] created", {
+        questionId: question.id,
+        choices: question.choices.length,
+      });
+
+      return res.status(201).json({ question });
+    } catch (err: unknown) {
+      console.error("[questions:POST] error:", err);
+      if (err instanceof Error) {
+        return res.status(500).json({
+          message: "Internal Server Error",
+          error: err.message,
+          stack: err.stack,
+        });
+      }
+      return res
+        .status(500)
+        .json({ message: "Internal Server Error", error: String(err) });
+    }
   }
 );
 
 /**
- * PATCH /questions/:id - update question
+ * PATCH /questions/:id
+ * ویرایش یک سؤال
  */
 router.patch(
   "/questions/:id",
   requireAuth,
   async (req: AuthRequest, res: Response) => {
-    const { id } = req.params;
-    const ownerId = req.userId!;
-    const { title, type, required, order } = req.body;
+    try {
+      const { id } = req.params;
+      const userId = req.userId!;
+      const { title, required, order } = req.body as {
+        title?: string;
+        required?: boolean;
+        order?: number;
+      };
 
-    const question = await prisma.question.findFirst({
-      where: { id, survey: { ownerId } },
-    });
-    if (!question) return res.status(404).json({ message: "Question not found" });
+      console.log("[questions:PATCH] input", {
+        id,
+        userId,
+        title,
+        required,
+        order,
+      });
 
-    const updated = await prisma.question.update({
-      where: { id },
-      data: {
-        ...(title !== undefined ? { title } : {}),
-        ...(type !== undefined ? { type } : {}),
-        ...(required !== undefined ? { required } : {}),
-        ...(order !== undefined ? { order } : {}),
-      },
-    });
+      const existing = await prisma.question.findFirst({
+        where: { id, survey: { ownerId: userId } },
+      });
 
-    res.json({ question: updated });
+      console.log("[questions:PATCH] ownership", {
+        id,
+        userId,
+        found: !!existing,
+      });
+
+      if (!existing) {
+        return res.status(404).json({ message: "Question not found" });
+      }
+
+      const updated = await prisma.question.update({
+        where: { id },
+        data: {
+          ...(title !== undefined ? { title } : {}),
+          ...(required !== undefined ? { required } : {}),
+          ...(typeof order === "number" ? { order } : {}),
+        },
+      });
+
+      console.log("[questions:PATCH] updated", { id: updated.id });
+
+      return res.json({ question: updated });
+    } catch (err: unknown) {
+      console.error("[questions:PATCH] error:", err);
+      if (err instanceof Error) {
+        return res.status(500).json({
+          message: "Internal Server Error",
+          error: err.message,
+          stack: err.stack,
+        });
+      }
+      return res
+        .status(500)
+        .json({ message: "Internal Server Error", error: String(err) });
+    }
   }
 );
 
 /**
- * DELETE /questions/:id - delete question
+ * DELETE /questions/:id
+ * حذف یک سؤال
  */
 router.delete(
   "/questions/:id",
   requireAuth,
   async (req: AuthRequest, res: Response) => {
-    const { id } = req.params;
-    const ownerId = req.userId!;
+    try {
+      const { id } = req.params;
+      const userId = req.userId!;
 
-    const question = await prisma.question.findFirst({
-      where: { id, survey: { ownerId } },
-    });
-    if (!question) return res.status(404).json({ message: "Question not found" });
+      console.log("[questions:DELETE] input", { id, userId });
 
-    await prisma.question.delete({ where: { id } });
-    res.json({ message: "Question deleted" });
-  }
-);
+      const existing = await prisma.question.findFirst({
+        where: { id, survey: { ownerId: userId } },
+        select: { id: true },
+      });
 
-/**
- * POST /questions/:id/choices - add choices to a question
- */
-router.post(
-  "/questions/:id/choices",
-  requireAuth,
-  async (req: AuthRequest, res: Response) => {
-    const { id } = req.params;
-    const ownerId = req.userId!;
-    const { choices } = req.body as { choices: { label: string; value: string; order?: number }[] };
+      console.log("[questions:DELETE] ownership", {
+        id,
+        userId,
+        found: !!existing,
+      });
 
-    const question = await prisma.question.findFirst({
-      where: { id, survey: { ownerId } },
-    });
-    if (!question) return res.status(404).json({ message: "Question not found" });
+      if (!existing) {
+        return res.status(404).json({ message: "Question not found" });
+      }
 
-    const created = await prisma.choice.createMany({
-      data: choices.map((c) => ({
-        questionId: id,
-        label: c.label,
-        value: c.value,
-        order: c.order ?? 0,
-      })),
-    });
+      await prisma.question.delete({ where: { id } });
 
-    res.status(201).json({ count: created.count });
+      console.log("[questions:DELETE] deleted", { id });
+
+      return res.json({ message: "Question deleted" });
+    } catch (err: unknown) {
+      console.error("[questions:DELETE] error:", err);
+      if (err instanceof Error) {
+        return res.status(500).json({
+          message: "Internal Server Error",
+          error: err.message,
+          stack: err.stack,
+        });
+      }
+      return res
+        .status(500)
+        .json({ message: "Internal Server Error", error: String(err) });
+    }
   }
 );
 

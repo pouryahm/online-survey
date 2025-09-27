@@ -3,6 +3,14 @@ import request from "supertest";
 import app from "../src/index";
 import { prisma } from "../src/lib/prisma";
 
+interface ChoiceDto {
+  id: string;
+  questionId: string;
+  label: string;
+  value: string;
+  order: number;
+}
+
 describe("Choice CRUD flow", () => {
   const email = `choice${Date.now()}@example.com`;
   const password = "P@ssw0rd!";
@@ -16,6 +24,10 @@ describe("Choice CRUD flow", () => {
     await prisma.question.deleteMany({});
     await prisma.survey.deleteMany({});
     await prisma.user.deleteMany({});
+  });
+
+  afterAll(async () => {
+    await prisma.$disconnect();
   });
 
   it("register & login user", async () => {
@@ -39,6 +51,7 @@ describe("Choice CRUD flow", () => {
       .expect(201);
 
     questionId = question.body.question.id;
+    console.log("[TEST] created", { surveyId, questionId });
   });
 
   it("create a choice", async () => {
@@ -48,8 +61,9 @@ describe("Choice CRUD flow", () => {
       .send({ label: "Red", value: "red", order: 1 })
       .expect(201);
 
-    choiceId = res.body.choice.id;
-    expect(res.body.choice.label).toBe("Red");
+    const choice = res.body.choice as ChoiceDto;
+    choiceId = choice.id;
+    expect(choice.label).toBe("Red");
   });
 
   it("list choices of question", async () => {
@@ -58,7 +72,9 @@ describe("Choice CRUD flow", () => {
       .set("Authorization", `Bearer ${accessToken}`)
       .expect(200);
 
-    expect(res.body.items.length).toBeGreaterThan(0);
+    const items = res.body.items as ChoiceDto[];
+    console.log("[TEST] list items:", items);
+    expect(items.length).toBeGreaterThan(0);
   });
 
   it("update a choice", async () => {
@@ -68,7 +84,8 @@ describe("Choice CRUD flow", () => {
       .send({ label: "Blue" })
       .expect(200);
 
-    expect(res.body.choice.label).toBe("Blue");
+    const choice: ChoiceDto = res.body.choice;
+    expect(choice.label).toBe("Blue");
   });
 
   it("delete a choice", async () => {
@@ -82,6 +99,7 @@ describe("Choice CRUD flow", () => {
       .set("Authorization", `Bearer ${accessToken}`)
       .expect(200);
 
-    expect(res.body.items.find((c: any) => c.id === choiceId)).toBeUndefined();
+    const items: ChoiceDto[] = res.body.items;
+    expect(items.find((c) => c.id === choiceId)).toBeUndefined();
   });
 });

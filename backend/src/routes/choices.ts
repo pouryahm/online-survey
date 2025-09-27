@@ -21,6 +21,8 @@ router.post(
         order?: number;
       };
 
+      console.log("[choices:POST] input", { questionId, userId, label, value, order });
+
       if (!label || !value) {
         return res.status(400).json({ message: "label and value are required" });
       }
@@ -29,6 +31,13 @@ router.post(
         where: { id: questionId, survey: { ownerId: userId } },
         select: { id: true },
       });
+
+      console.log("[choices:POST] question lookup", {
+        questionId,
+        userId,
+        found: !!question,
+      });
+
       if (!question) {
         return res.status(404).json({ message: "Question not found" });
       }
@@ -42,17 +51,24 @@ router.post(
         },
       });
 
+      console.log("[choices:POST] created", { choiceId: choice.id });
       return res.status(201).json({ choice });
-    } catch (err) {
+    } catch (err: unknown) {
       console.error("[choices:POST] error:", err);
-      return res.status(500).json({ message: "Internal Server Error" });
+      if (err instanceof Error) {
+        return res.status(500).json({
+          message: "Internal Server Error",
+          error: err.message,
+          stack: err.stack,
+        });
+      }
+      return res.status(500).json({ message: "Internal Server Error", error: String(err) });
     }
   }
 );
 
 /**
  * GET /questions/:questionId/choices
- * لیست گزینه‌های یک سوال
  */
 router.get(
   "/questions/:questionId/choices",
@@ -62,10 +78,19 @@ router.get(
       const { questionId } = req.params;
       const userId = req.userId!;
 
+      console.log("[choices:GET list] input", { questionId, userId });
+
       const question = await prisma.question.findFirst({
         where: { id: questionId, survey: { ownerId: userId } },
         select: { id: true },
       });
+
+      console.log("[choices:GET list] question lookup", {
+        questionId,
+        userId,
+        found: !!question,
+      });
+
       if (!question) {
         return res.status(404).json({ message: "Question not found" });
       }
@@ -75,17 +100,24 @@ router.get(
         orderBy: { order: "asc" },
       });
 
+      console.log("[choices:GET list] items", items);
       return res.json({ items });
-    } catch (err) {
+    } catch (err: unknown) {
       console.error("[choices:GET list] error:", err);
-      return res.status(500).json({ message: "Internal Server Error" });
+      if (err instanceof Error) {
+        return res.status(500).json({
+          message: "Internal Server Error",
+          error: err.message,
+          stack: err.stack,
+        });
+      }
+      return res.status(500).json({ message: "Internal Server Error", error: String(err) });
     }
   }
 );
 
 /**
  * PATCH /choices/:id
- * ویرایش یک گزینه
  */
 router.patch(
   "/choices/:id",
@@ -100,13 +132,13 @@ router.patch(
         order?: number;
       };
 
+      console.log("[choices:PATCH] input", { id, userId, label, value, order });
+
       const existing = await prisma.choice.findFirst({
-        where: {
-          id,
-          question: { survey: { ownerId: userId } },
-        },
-        include: { question: true },
+        where: { id, question: { survey: { ownerId: userId } } },
       });
+
+      console.log("[choices:PATCH] ownership check", { id, userId, found: !!existing });
 
       if (!existing) {
         return res.status(404).json({ message: "Choice not found" });
@@ -121,17 +153,24 @@ router.patch(
         },
       });
 
+      console.log("[choices:PATCH] updated", { id: updated.id });
       return res.json({ choice: updated });
-    } catch (err) {
+    } catch (err: unknown) {
       console.error("[choices:PATCH] error:", err);
-      return res.status(500).json({ message: "Internal Server Error" });
+      if (err instanceof Error) {
+        return res.status(500).json({
+          message: "Internal Server Error",
+          error: err.message,
+          stack: err.stack,
+        });
+      }
+      return res.status(500).json({ message: "Internal Server Error", error: String(err) });
     }
   }
 );
 
 /**
  * DELETE /choices/:id
- * حذف گزینه
  */
 router.delete(
   "/choices/:id",
@@ -141,20 +180,32 @@ router.delete(
       const { id } = req.params;
       const userId = req.userId!;
 
+      console.log("[choices:DELETE] input", { id, userId });
+
       const existing = await prisma.choice.findFirst({
         where: { id, question: { survey: { ownerId: userId } } },
         select: { id: true },
       });
+
+      console.log("[choices:DELETE] ownership check", { id, userId, found: !!existing });
 
       if (!existing) {
         return res.status(404).json({ message: "Choice not found" });
       }
 
       await prisma.choice.delete({ where: { id } });
+      console.log("[choices:DELETE] deleted", { id });
       return res.json({ message: "Choice deleted" });
-    } catch (err) {
+    } catch (err: unknown) {
       console.error("[choices:DELETE] error:", err);
-      return res.status(500).json({ message: "Internal Server Error" });
+      if (err instanceof Error) {
+        return res.status(500).json({
+          message: "Internal Server Error",
+          error: err.message,
+          stack: err.stack,
+        });
+      }
+      return res.status(500).json({ message: "Internal Server Error", error: String(err) });
     }
   }
 );

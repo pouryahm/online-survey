@@ -8,56 +8,46 @@ import { env } from "./config/env";
 import { healthRouter } from "./routes/health";
 import { dbRouter } from "./routes/db";
 import { authRouter } from "./routes/auth";
-import sessionsRoutes from "./routes/sessions";   // 👈 انتقال به بالا
 import profileRouter from "./routes/profile";
-import surveyRouter from "./routes/surveys";
+import sessionsRouter from "./routes/sessions";
+import surveysRouter from "./routes/surveys";
 import questionsRouter from "./routes/questions";
 import choicesRouter from "./routes/choices";
 
-
 dotenv.config();
-
 const app = express();
 
-// CORS قبل از روترها
+// Middleware ها
 app.use(corsMiddleware);
-
-// به‌جای app.options('*', ...) — پاسخ جهانی برای preflight
 app.use((req, res, next) => {
-  if (req.method === "OPTIONS") {
-    // هدرهای CORS همین الان توسط corsMiddleware ست شده‌اند
-    return res.sendStatus(204);
-  }
+  if (req.method === "OPTIONS") return res.sendStatus(204);
   next();
 });
-
 app.use(corsErrorHandler);
-
-// JSON body
 app.use(express.json());
 
-// ساخت دایرکتوری‌ها اگر وجود ندارند
+// ensure dirs
 [PATHS.public(), PATHS.uploads(), PATHS.tmp(), PATHS.logs()].forEach((dir) => {
   fs.mkdirSync(dir, { recursive: true });
 });
 
-// استاتیک و روترها
+// Routes
 app.use("/public", express.static(PATHS.public()));
 app.use("/health", healthRouter);
 app.use("/db", dbRouter);
 app.use("/auth", authRouter);
-app.use(sessionsRoutes);   // 👈 اینجا اضافه شد
 app.use(profileRouter);
-app.use(surveyRouter);
+app.use(sessionsRouter);
+app.use(surveysRouter);
 app.use(questionsRouter);
 app.use(choicesRouter);
 
-
-// شروع سرور
-const PORT = env.PORT;
-app.listen(PORT, () => {
-  console.log(`[server] listening on http://localhost:${PORT}`);
-});
+// فقط وقتی NODE_ENV !== test سرور ران بشه
+if (process.env.NODE_ENV !== "test") {
+  const PORT = env.PORT;
+  app.listen(PORT, () => {
+    console.log(`[server] listening on http://localhost:${PORT}`);
+  });
+}
 
 export default app;
-
